@@ -4,40 +4,44 @@ pipeline {
     stages {
         stage('get docker file from git') {
             steps {
-            git branch: 'main', url: 'https://github.com/mahendrachoudhary27/auto-deployment.git' 
+                git branch: 'main', url: 'https://github.com/mahendrachoudhary27/auto-deployment.git' 
             }
         }
-    
-        stage ('run docker file command to create image and push') {
+        
+        stage('run docker file command to create image and push') {
             steps {
-            sh '''docker build -t $JOB_NAME:v$BUILD_ID .
+                script {
+                    withEnv(['LOGIN_CREDS=docker_credentials']) {
+                        withCredentials([usernamePassword(credentialsId: 'docker_credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                            sh "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+                            sh """docker build -t $JOB_NAME:v$BUILD_ID .
 docker tag $JOB_NAME:v$BUILD_ID mahen27/$JOB_NAME:v$BUILD_ID
 docker tag $JOB_NAME:v$BUILD_ID mahen27/$JOB_NAME:latest
 docker push mahen27/$JOB_NAME:v$BUILD_ID
 docker push mahen27/$JOB_NAME:latest
-docker rmi -f mahen27/$JOB_NAME:latest mahen27/$JOB_NAME:v$BUILD_ID $JOB_NAME:v$BUILD_ID'''
+docker rmi -f mahen27/$JOB_NAME:latest mahen27/$JOB_NAME:v$BUILD_ID $JOB_NAME:v$BUILD_ID"""
+                        }
+                    }
+                }
             }
-    
-        }    
-    
+        }       
+
         stage ('changing directory to ansible') {
             steps {
                 sh '''cd /root/ansible'''
             }
         }
         
-        stage (' getting the playbook from github') {
+        stage ('getting the playbook from github') {
             steps {
                 git branch: 'main', url: 'https://github.com/mahendrachoudhary27/ansible-jenkins.git'
             }
         }
         
-         stage ('running playbook') {
+        stage ('running playbook') {
             steps {
-                sh '''cd /root/ansible
-ansible-playbook ansible-file.yml'''
+                sh '''ansible-playbook ansible-file.yml'''
             }
         }
-    
-    }    
+    }
 }
